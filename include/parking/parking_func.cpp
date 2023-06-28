@@ -1,6 +1,22 @@
-#include <parking/parking.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+#include <rclcpp/rclcpp.hpp>
+#include <cv_bridge/cv_bridge.h>
+#include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/int16.hpp>
+#include <std_msgs/msg/bool.hpp>
+#include <image_transport/image_transport.hpp>
 #include <vector>
 #include <sstream>
+#define LEFT_CAM 0
+
+float baseline = 23;
+float focal_pixels = 800; // size(1280, 720) 일때 focal_pixels
+int target_x = 135;
+int target_z = 135;
+float alpha = 23.9;	//alpha = 카메라 머리 숙인 각도
+float beta = 45.5999; 	//beta = erp 헤딩으로부터 카메라 각도
 
 //--------------------------------------------------------------------------------------------------
 /**
@@ -8,7 +24,7 @@
  * @param frame 입력 영상
  * @param camera 카메라 번호 0 = 왼쪽, 1 = 오른쪽
  */
-void Parking::line_symmetry(const cv::Mat& frame, const int camera)
+void line_symmetry(const cv::Mat& frame, const int camera)
 {
 	rectangle(frame, cv::Rect(cv::Point(635,0),cv::Point(645,720)),cv::Scalar(0,255,0),2,4,0);
 	rectangle(frame, cv::Rect(cv::Point(0,680),cv::Point(1280,690)),cv::Scalar(0,255,0),2,4,0);
@@ -19,7 +35,7 @@ void Parking::line_symmetry(const cv::Mat& frame, const int camera)
 	rectangle(frame, cv::Rect(cv::Point(0,480),cv::Point(1280,490)),cv::Scalar(0,255,0),2,4,0);
 	rectangle(frame, cv::Rect(cv::Point(0,360),cv::Point(1280,370)),cv::Scalar(0,255,0),2,4,0);
 
-	if(camera == 0)
+	if(camera == LEFT_CAM)
 	{
 		imshow("left_line_symmetry", frame);
 	}
@@ -34,7 +50,7 @@ void Parking::line_symmetry(const cv::Mat& frame, const int camera)
  * @brief 왜곡 보정 함수
  * @param frame 입력 영상
  */
-cv::Mat Parking::undistort_frame(const cv::Mat& frame)
+cv::Mat undistort_frame(const cv::Mat& frame)
 {
 	// 카메라 내부 파라미터
 	cv::Mat intrinsic_param = cv::Mat::zeros(3,3,CV_64FC1); // zeros로 테스트 중
@@ -64,7 +80,7 @@ cv::Mat Parking::undistort_frame(const cv::Mat& frame)
  * @param camera 카메라 번호 0 = 왼쪽, 1 = 오른쪽
  * @return Mat 
  */
-cv::Mat Parking::add_hsv_filter(const cv::Mat& frame, const int camera) {
+cv::Mat add_hsv_filter(const cv::Mat& frame, const int camera) {
 
 	cv::cvtColor(frame, frame, cv::COLOR_BGR2HSV);
 	cv::Mat mask;
@@ -97,7 +113,7 @@ cv::Mat Parking::add_hsv_filter(const cv::Mat& frame, const int camera) {
  * @param mask 이진화된 영상 (HSV로 이진화하든 어쨌든 이진화된 영상)
  * @return Point 
  */
-cv::Point Parking::find_ball(const cv::Mat& frame, const cv::Mat& mask)
+cv::Point find_ball(const cv::Mat& frame, const cv::Mat& mask)
 {
 
 	std::vector<std::vector<cv::Point> > contours;
@@ -141,7 +157,7 @@ cv::Point Parking::find_ball(const cv::Mat& frame, const cv::Mat& mask)
 
 
 //--------------------------------------------------------------------------------------------------
-cv::Mat Parking::find_edge(const cv::Mat& frame, const int camera) {
+cv::Mat find_edge(const cv::Mat& frame, const int camera) {
 
 
 	// y값이 왜 영상의 4분의 1지점이지???
@@ -247,7 +263,7 @@ cv::Mat Parking::find_edge(const cv::Mat& frame, const int camera) {
  * @param camera 카메라 번호 0 = 왼쪽, 1 = 오른쪽
  * @return double* 
  */
-double* Parking::find_center(const cv::Mat& frame, double array[], const int camera)
+double* find_center(const cv::Mat& frame, double array[], const int camera)
 {
 	int center_x = frame.cols /2;
 	int center_y = frame.rows /4;
@@ -446,8 +462,8 @@ double* Parking::find_center(const cv::Mat& frame, double array[], const int cam
  * @param beta 카메라가 틀어진 각도 (처음 find_ball함수를 이용해 캘리를 하면서 구함)
  * @return Point2d (실제 X거리값, 실제 Z거리값, cm단위임)
  */
-cv::Point2d Parking::find_xz(const cv::Point2d circle_left, const cv::Point2d circle_right, \
-const cv::Mat& left_frame, const cv::Mat& right_frame, const float alpha, const float beta)
+cv::Point2d find_xz(const cv::Point2d circle_left, const cv::Point2d circle_right, \
+const cv::Mat& left_frame, const cv::Mat& right_frame, float alpha, float beta)
 {
 	float x_0 = 0;
 	float y_0 = 0;
@@ -472,21 +488,21 @@ const cv::Mat& left_frame, const cv::Mat& right_frame, const float alpha, const 
 
 	if(xLeft != x_0)
 	{
-		realX = (float)Parking::baseline/(1 - (x_0 - xRight)/(x_0 - xLeft));
-		realZ = abs(realX*Parking::focal_pixels/(x_0 - xLeft));
+		realX = (float)baseline/(1 - (x_0 - xRight)/(x_0 - xLeft));
+		realZ = abs(realX*focal_pixels/(x_0 - xLeft));
 	}
 	else if(xRight != x_0)
 	{
-		realX = -(float)Parking::baseline/(1 - (x_0 - xLeft)/(x_0 - xRight));
-		realZ = abs(realX*Parking::focal_pixels/(x_0 - xRight));
-		realX = realX + (float)Parking::baseline; //왼쪽 카메라 기준
+		realX = -(float)baseline/(1 - (x_0 - xLeft)/(x_0 - xRight));
+		realZ = abs(realX*focal_pixels/(x_0 - xRight));
+		realX = realX + (float)baseline; //왼쪽 카메라 기준
 	}
 	else
 	{
 		realX = 0;
 		realY = 0;
 	}
-	realY = realZ*(2*y_0-yLeft-yRight)/(2*Parking::focal_pixels);
+	realY = realZ*(2*y_0-yLeft-yRight)/(2*focal_pixels);
 
 	distance = sqrt(pow(realX,2)+pow(realY,2) + pow(realZ,2));
 
@@ -496,8 +512,8 @@ const cv::Mat& left_frame, const cv::Mat& right_frame, const float alpha, const 
 	// cout << " 영점 조절 : " << realX << endl;
 	
 	//ERP 기준 좌표로 변환
-	Parking::alpha = alpha * CV_PI / 180;
-	Parking::beta = beta * CV_PI / 180;
+	alpha = alpha * CV_PI / 180;
+	beta = beta * CV_PI / 180;
 
 	float fakeZ = realZ;
 	float fakeY = realY;
@@ -529,7 +545,7 @@ const cv::Mat& left_frame, const cv::Mat& right_frame, const float alpha, const 
  * @param src 입력영상 
  * @return Mat 이진화된 영상 
  */
-cv::Mat Parking::adapt_th(cv::Mat src)
+cv::Mat adapt_th(cv::Mat src)
 {
 	cv::Mat image;
 	cv::Mat binary;
@@ -678,3 +694,80 @@ Point StereoVision::back_park(Mat &img, int camera)
     }
 }
 */
+
+
+/**
+ * @brief 마우스 왼쪽 클릭을 하면 마우스가 있는 지점의 HSV 색상을 알려줌
+ * @param event 
+ * @param x 
+ * @param y 
+ * @param flags 
+ * @param param 
+ */
+void mouse_callback(int event, int x, int y, int flags, void *param)
+{
+	if (event == cv::EVENT_LBUTTONDBLCLK)
+	{
+		cv::Vec3b color_pixel = img_color.at<cv::Vec3b>(y, x);
+
+		cv::Mat hsv_color = cv::Mat(1, 1, CV_8UC3, color_pixel);
+
+
+		H = hsv_color.at<cv::Vec3b>(0, 0)[0];
+		S = hsv_color.at<cv::Vec3b>(0, 0)[1];
+		V = hsv_color.at<cv::Vec3b>(0, 0)[2];
+
+		std::cout << "left H= " << H << std::endl;
+		std::cout << "left S= " << S << std::endl;
+		std::cout << "left V = " << V << "\n" << std::endl;
+
+	}
+}
+
+// float camera_values()
+// {
+//     cv::Mat K(3,3,CV_64F);
+
+//     K = (Mat_<_Float64>(3, 3) << 538.39128993937,   0.,   308.049009633327, 0.,  539.777910345317,  248.065244763797, 0., 0., 1.);
+
+//     cout << "K : " << K << endl;
+
+
+//     cv::Size imageSize(640,480);
+//     double apertureWidth = 0;
+//     double apertureHeight = 0;
+//     double fieldOfViewX;
+//     double fieldOfViewY;
+//     double focalLength2;
+//     cv::Point2d principalPoint;
+//     double aspectRatio;
+//     cv::calibrationMatrixValues(K, imageSize, apertureWidth, apertureHeight, fieldOfViewX, fieldOfViewY, focalLength2, principalPoint, aspectRatio);
+
+    
+//     cout << fieldOfViewX << endl;
+
+//     return (float)focalLength2;
+// }
+
+/**
+ * @brief 마우스 왼쪽 버튼을 누르고 땔 때마다 그 위치의 좌표를 알려줌
+ * 
+ * @param event 
+ * @param x 
+ * @param y 
+ * @param flags 
+ */
+
+void on_mouse(int event, int x, int y, int flags, void *)
+{
+	switch (event)
+	{
+	case cv::EVENT_LBUTTONDOWN:
+		ptOld1 = cv::Point(x, y);
+		std::cout << "EVENT_LBUTTONDOWN: " << x << ", " << y << std::endl;
+		break;
+	case cv::EVENT_LBUTTONUP:
+		std::cout << "EVENT_LBUTTONUP: " << x << ", " << y << std::endl;
+		break;
+	}
+}
