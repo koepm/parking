@@ -1,7 +1,5 @@
-#include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/image.hpp>
-#include <opencv2/opencv.hpp>
 #include "parking/parking_func.cpp"
+#include <std_msgs/msg/float64_multi_array.hpp>
 #include <chrono>
 #include <thread>
 #define LEFT_CAM 0
@@ -28,7 +26,7 @@ class ImagePublisher : public rclcpp::Node
 {
 public:
   ImagePublisher()
-  : Node("image")
+  : Node("parking_node")
   {
 
 	lidar_flag_= this->create_subscription<std_msgs::msg::Bool>(
@@ -37,7 +35,7 @@ public:
 	mission_flag_= this->create_subscription<std_msgs::msg::Int16>(
         "mission_flag", 10, std::bind(&mission_callback, this, std::placeholders::_1));
 
-    publisher_ = this->create_publisher<sensor_msgs::msg::Image>("video1", 10);
+	center_XZ_pub_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("where_center_point_needs",10);
 
     cap_left_.open(LEFT_CAM);
     cap_left_.set(cv::CAP_PROP_FRAME_WIDTH, 320);
@@ -64,8 +62,24 @@ public:
 
 private:
     rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr publisher_;
+	rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr center_XZ_pub_;
     cv::VideoCapture cap_left_;
 	cv::VideoCapture cap_right_;
+
+	//sub
+	rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_; // 일단 사용 안함
+	rclcpp::Subscription<std_msgs::msg::Int16>::SharedPtr mission_flag_; // 현재 진행 미션 플래그
+	rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr lidar_flag_; // 라이다 스탑 플래그
+
+	float baseline = 23;
+	float focal_pixels = 800; // size(1280, 720) 일때 focal_pixels
+	int target_x = 135;
+	int target_z = 135;
+	float alpha = 23.9;	//alpha = 카메라 머리 숙인 각도
+	float beta = 45.5999; 	//beta = erp 헤딩으로부터 카메라 각도
+	float gps_for_camera_x = 30; //cm
+	float gps_for_camera_z = -50; //cm
+
 
     void image_processing()
     {
@@ -93,36 +107,36 @@ private:
 
 			if((mission_flag == 10)||(mission_flag == 6))
 			{
-				// =================[ using parking ]=========================
+				// =================[ sub하는 변수값 확인 ]=========================
 				// system("clear");
-				// cout << "---------------------------------------------" << endl;
-				// cout << "lidar_stop : " << lidar_stop << "  finish_park : " << finish_park << endl;	
+				// std::cout << "---------------------------------------------" << std::endl;
+				// std::cout << "lidar_stop : " << lidar_stop << "  finish_park : " << finish_park << std::endl;	
 
 				// imshow("rightFrame", rightFrame);
 				// imshow("leftFrame", leftFrame);
 
-				// leftMask = stereovision.find_edge(leftFrame, 0);
-				// rightMask = stereovision.find_edge(rightFrame, 1);
+				// leftMask = find_edge(leftFrame, 0);
+				// rightMask = find_edge(rightFrame, 1);
 
-				// =================[ using yellow ball ]=======================
-				leftMask = add_hsv_filter(leftFrame, LEFT_CAM);
-				rightMask = add_hsv_filter(rightFrame, RIGHT_CAM);
-				cv::Point2f ball_XZ;
-				leftCircle = find_ball(leftMask, leftMask);
-				rightCircle = find_ball(rightMask, rightMask);
-				ball_XZ = find_xz(leftCircle, rightCircle, leftFrame, rightFrame, alpha, beta);
+				// =================[ 노란공을 이용한 초기 대칭 확인 ]=======================
+				// leftMask = add_hsv_filter(leftFrame, LEFT_CAM);
+				// rightMask = add_hsv_filter(rightFrame, RIGHT_CAM);
+				// cv::Point2f ball_XZ;
+				// leftCircle = find_ball(leftMask, leftMask);
+				// rightCircle = find_ball(rightMask, rightMask);
+				// ball_XZ = find_xz(leftCircle, rightCircle, leftFrame, rightFrame, alpha, beta);
 				
 				// ==================[ using mouse_callback ]===================
 				// img_color = leftFrame.clone();
 				// img_color_2 = rightFrame.clone();
-				// setMouseCallback("Left Frame", mouse_callback);
-				// setMouseCallback("Right Frame", mouse_callback_2);
+				// cv::setMouseCallback("Left Frame", mouse_callback);
+				// cv::setMouseCallback("Right Frame", mouse_callback_2);
 
 				// setMouseCallback("Left Frame",on_mouse);
 				// setMouseCallback("Right Frame",on_mouse);
 
-				imshow("rightMask", rightMask);
-				imshow("leftMask", leftMask);
+				// imshow("rightMask", rightMask);
+				// imshow("leftMask", leftMask);
 
 				if((lidar_stop == false) && (finish_park == false))
 				{
@@ -196,34 +210,34 @@ private:
 						}				
 
 						array_count++;
-						// cout << "array_count : " << array_count << endl;
+						std::cout << "array_count : " << array_count << std::endl;
 
-						// if(array_count == 20)
-						// {
-						// 	if(boom_count > 15)
-						// 	{
-						// 		cout << "주차실패 ㅠㅠㅠㅠ" << endl;
-						// 	}
-						// 	else
-						// 	{
-						// 		cout << " 봄 ? \n 이게 바로 비전 클라스 우리 잘못 아니니 뭐라 하려면 제어탓. \n ^~^" << endl;
-						// 	}
+						if(array_count == 20)
+						{
+							if(boom_count > 15)
+							{
+								std::cout << "주차실패 ㅠㅠㅠㅠ" << std::endl;
+							}
+							else
+							{
+								std::cout << " 봄 ? \n 이게 바로 비전 클라스 우리 잘못 아니니 뭐라 하려면 제어탓. \n ^~^" << std::endl;
+							}
 							
-						// 	cout << "!!!!!!!!!!!!!!!!!!" << endl;
-						// 	std_msgs::Float64MultiArray center_XZ_msg; 
-						// 	center_XZ_msg.data.clear();
+							std::cout << "!!!!!!!!!!!!!!!!!!" << std::endl;
+							std_msgs::msg::Float64MultiArray center_XZ_msg; 
+							center_XZ_msg.data.clear();
 
-						// 	for(int i=0; i<6; i++)
-						// 	{
-						// 		pub_array[i] = sum_array[i]/(double)array_count;
-						// 		center_XZ_msg.data.push_back(pub_array[i]);
-						// 		printf("pub_array[%d] : %f\n", i, pub_array[i]);
-						// 	}
+							for(int i=0; i<6; i++)
+							{
+								pub_array[i] = sum_array[i]/(double)array_count;
+								center_XZ_msg.data.push_back(pub_array[i]);
+								printf("pub_array[%d] : %f\n", i, pub_array[i]);
+							}
 							
-						// 	center_XZ_pub.publish(center_XZ_msg);
-						// 	finish_park = true;
-						// 	cout << " Finish !!!! " << endl;
-						// }
+							center_XZ_pub_->publish(center_XZ_msg);
+							finish_park = true;
+							std::cout << " Finish !!!! " << std::endl;
+						}
 					}
 				}
 				else if((lidar_stop == true) && (finish_park == true))
@@ -234,20 +248,6 @@ private:
 			rclcpp::spin_some(this->get_node_base_interface());
 		}
     }
-
-	//sub
-	rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_; // 일단 사용 안함
-	rclcpp::Subscription<std_msgs::msg::Int16>::SharedPtr mission_flag_; // 현재 진행 미션 플래그
-	rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr lidar_flag_; // 라이다 스탑 플래그
-
-	float baseline = 23;
-	float focal_pixels = 800; // size(1280, 720) 일때 focal_pixels
-	float alpha = 23.9;	//alpha = 카메라 머리 숙인 각도
-	float beta = 45.5999; 	//beta = erp 헤딩으로부터 카메라 각도
-	float gps_for_camera_x = 30; //cm
-	float gps_for_camera_z = -50; //cm
-	int target_x = 135;
-	int target_z = 135;
 
 	/**
  * @brief 라이더로부터 플래그를 받음 lidar_stop
@@ -277,101 +277,5 @@ int main(int argc, char * argv[])
   rclcpp::spin(std::make_shared<ImagePublisher>());
   rclcpp::shutdown();
   return 0;
-}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/**
- * @brief 마우스 왼쪽 클릭을 하면 마우스가 있는 지점의 HSV 색상을 알려줌
- * @param event 
- * @param x 
- * @param y 
- * @param flags 
- * @param param 
- */
-void mouse_callback(int event, int x, int y, int flags, void *param)
-{
-	if (event == cv::EVENT_LBUTTONDBLCLK)
-	{
-		cv::Vec3b color_pixel = img_color.at<cv::Vec3b>(y, x);
-
-		cv::Mat hsv_color = cv::Mat(1, 1, CV_8UC3, color_pixel);
-
-
-		H = hsv_color.at<cv::Vec3b>(0, 0)[0];
-		S = hsv_color.at<cv::Vec3b>(0, 0)[1];
-		V = hsv_color.at<cv::Vec3b>(0, 0)[2];
-
-		std::cout << "left H= " << H << std::endl;
-		std::cout << "left S= " << S << std::endl;
-		std::cout << "left V = " << V << "\n" << std::endl;
-
-	}
-}
-
-// float camera_values()
-// {
-//     cv::Mat K(3,3,CV_64F);
-
-//     K = (Mat_<_Float64>(3, 3) << 538.39128993937,   0.,   308.049009633327, 0.,  539.777910345317,  248.065244763797, 0., 0., 1.);
-
-//     cout << "K : " << K << endl;
-
-
-//     cv::Size imageSize(640,480);
-//     double apertureWidth = 0;
-//     double apertureHeight = 0;
-//     double fieldOfViewX;
-//     double fieldOfViewY;
-//     double focalLength2;
-//     cv::Point2d principalPoint;
-//     double aspectRatio;
-//     cv::calibrationMatrixValues(K, imageSize, apertureWidth, apertureHeight, fieldOfViewX, fieldOfViewY, focalLength2, principalPoint, aspectRatio);
-
-    
-//     cout << fieldOfViewX << endl;
-
-//     return (float)focalLength2;
-// }
-
-/**
- * @brief 마우스 왼쪽 버튼을 누르고 땔 때마다 그 위치의 좌표를 알려줌
- * 
- * @param event 
- * @param x 
- * @param y 
- * @param flags 
- */
-
-void on_mouse(int event, int x, int y, int flags, void *)
-{
-	switch (event)
-	{
-	case cv::EVENT_LBUTTONDOWN:
-		ptOld1 = cv::Point(x, y);
-		std::cout << "EVENT_LBUTTONDOWN: " << x << ", " << y << std::endl;
-		break;
-	case cv::EVENT_LBUTTONUP:
-		std::cout << "EVENT_LBUTTONUP: " << x << ", " << y << std::endl;
-		break;
-	}
 }
 
