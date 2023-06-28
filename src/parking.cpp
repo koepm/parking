@@ -10,17 +10,9 @@ int array_count = 0;
 int boom_count = 0;
 int mission_flag = 0;
 bool lidar_stop = false;
-
-cv::Mat img_color;
-cv::Mat img_color_2;
-int H, S, V;
-
 bool finish_park = false;
-
 bool impulse = false;
-
 float sum_array[6] ={0,0,0,0,0,0};
-cv::Point ptOld1;
 
 class ImagePublisher : public rclcpp::Node
 {
@@ -29,11 +21,11 @@ public:
   : Node("parking_node")
   {
 
-	lidar_flag_= this->create_subscription<std_msgs::msg::Bool>(
-        "lidar_flag", 10, std::bind(&lidar_callback, this, std::placeholders::_1));
-	
-	mission_flag_= this->create_subscription<std_msgs::msg::Int16>(
-        "mission_flag", 10, std::bind(&mission_callback, this, std::placeholders::_1));
+	lidar_flag_ = this->create_subscription<std_msgs::msg::Bool>(
+    "lidar_flag", 10, [this](const std_msgs::msg::Bool::SharedPtr msg) {lidar_callback(msg);});
+
+	mission_flag_ = this->create_subscription<std_msgs::msg::Int16>(
+    "mission_flag", 10, [this](const std_msgs::msg::Int16::SharedPtr msg) {mission_callback(msg);});
 
 	center_XZ_pub_ = this->create_publisher<std_msgs::msg::Float64MultiArray>("where_center_point_needs",10);
 

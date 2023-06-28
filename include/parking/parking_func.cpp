@@ -17,6 +17,10 @@ int target_x = 135;
 int target_z = 135;
 float alpha = 23.9;	//alpha = 카메라 머리 숙인 각도
 float beta = 45.5999; 	//beta = erp 헤딩으로부터 카메라 각도
+cv::Mat img_color;
+cv::Mat img_color_2;
+int H, S, V;
+cv::Point ptOld1;
 
 //--------------------------------------------------------------------------------------------------
 /**
