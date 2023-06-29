@@ -168,10 +168,11 @@ cv::Mat Parking::find_edge(const cv::Mat& frame, const int camera) {
 	magnitude(dx, dy, fmag);
 	fmag.convertTo(mag, CV_8UC1);
 
-	// 특정 강도 이상만 표시?
-	cv::Mat edge = mag > 80;
+	// 특정 강도 이상만 표시? 3기(80) 4기(50)
+	cv::Mat edge = mag > 50;
 
-	imshow("edge", edge);
+	//imshow("edge", edge);
+	//cv::waitKey(1);
 
 
 	if(camera != CAM)
@@ -220,11 +221,11 @@ cv::Mat Parking::find_edge(const cv::Mat& frame, const int camera) {
 
 	if(camera == CAM)
 	{
-		// imshow("left circle mean", gray_image);
+		//imshow("left circle mean", gray_image);
 	}
 	else
 	{
-		// imshow("right circle mean", gray_image);
+		//imshow("right circle mean", gray_image);
 	}
 
 
@@ -232,7 +233,8 @@ cv::Mat Parking::find_edge(const cv::Mat& frame, const int camera) {
 	dilate(edge, edge, cv::Mat(), cv::Point(-1, -1), 1);
 	// erode(edge, edge, Mat(), Point(-1, -1), 1);
 
-	// imshow("final ", edge);
+	//imshow("final ", edge);
+	//cv::waitKey(1);
 
 	return edge;
 }

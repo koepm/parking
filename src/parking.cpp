@@ -1,14 +1,14 @@
 #include "parking/parking_func.cpp"
 #include <chrono>
 #include <thread>
-#define LEFT_CAM 2
-#define RIGHT_CAM 4
+#define LEFT_CAM 4
+#define RIGHT_CAM 2
 
 // 아직 변수 정리 중
 int array_count = 0;
 int boom_count = 0;
-int mission_flag = 10;
-bool lidar_stop = true;
+int mission_flag = 0;
+bool lidar_stop = false;
 
 cv::Mat img_color;
 cv::Mat img_color_2;
@@ -107,33 +107,46 @@ void Parking::image_processing()
 		//cv::rectangle(right_frame, cv::Rect(0, 0, 1280, 100), cv::Scalar(0, 0, 0), -1); //상단 for koreatech
 		// rectangle(left_frame, Rect(0, 400, 1280, 720), Scalar(0, 0, 0), -1); //for k-citys
 		// rectangle(right_frame, Rect(0, 0, 1280, 200), Scalar(0, 0, 0), -1); //for k-citys
-		// ===================================================================
 
 		//imshow("right_frame", right_frame);
 		//cv::waitKey(1);
 		//imshow("left_frame", left_frame);
 		//cv::waitKey(1);
 
+		// ===================================================================
+
+		
+
 		if((mission_flag == 10)||(mission_flag == 6))
 		{
+
+			leftMask = find_edge(left_frame, LEFT_CAM);
+			rightMask = find_edge(right_frame, RIGHT_CAM);
+
+			imshow("rightMask", rightMask);
+			cv::waitKey(1);
+			imshow("leftMask", leftMask);
+			cv::waitKey(1);
+			
 			// =================[ using parking ]=========================
 			// system("clear");
 			// cout << "---------------------------------------------" << endl;
 			// cout << "lidar_stop : " << lidar_stop << "  finish_park : " << finish_park << endl;	
 
 			// imshow("right_frame", right_frame);
+			// cv::waitKey(1);
 			// imshow("left_frame", left_frame);
-
-			// leftMask = stereovision.find_edge(left_frame, 0);
-			// rightMask = stereovision.find_edge(right_frame, 1);
+			// cv::waitKey(1);
+			// =============================================================
 
 			// =================[ using yellow ball ]=======================
-			leftMask = Parking::add_hsv_filter(left_frame, LEFT_CAM);
-			rightMask = Parking::add_hsv_filter(right_frame, RIGHT_CAM);
+			//leftMask = Parking::add_hsv_filter(left_frame, LEFT_CAM);
+			//rightMask = Parking::add_hsv_filter(right_frame, RIGHT_CAM);
 			//cv::Point2f ball_XZ;
 			//leftCircle = Parking::find_ball(leftMask, leftMask);
 			//rightCircle = Parking::find_ball(rightMask, rightMask);
 			//ball_XZ = Parking::find_xz(leftCircle, rightCircle, left_frame, right_frame, Parking::alpha, Parking::beta);
+			// =============================================================
 			
 			// ==================[ using mouse_callback ]===================
 			// img_color = left_frame.clone();
@@ -143,11 +156,7 @@ void Parking::image_processing()
 
 			// setMouseCallback("Left Frame",on_mouse);
 			// setMouseCallback("Right Frame",on_mouse);
-
-			imshow("rightMask", rightMask);
-			cv::waitKey(1);
-			imshow("leftMask", leftMask);
-			cv::waitKey(1);
+			// =============================================================
 
 			if((lidar_stop == false) && (finish_park == false))
 			{
@@ -255,6 +264,13 @@ void Parking::image_processing()
 			{
 				//std::cout << " Finish !!!! " << std::endl;
 			}
+		}
+		else
+		{
+			imshow("right_frame(waiting misiion)", right_frame);
+			cv::waitKey(1);
+			imshow("left_frame(waiting misiion)", left_frame);
+			cv::waitKey(1);
 		}
 
 	}
