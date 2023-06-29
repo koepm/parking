@@ -1,6 +1,7 @@
 #include <parking/parking.hpp>
 #include <vector>
 #include <sstream>
+#define CAM 0 // 여기에 왼쪽 카메라 인덱스 넣기
 
 //--------------------------------------------------------------------------------------------------
 /**
@@ -19,7 +20,7 @@ void Parking::line_symmetry(const cv::Mat& frame, const int camera)
 	rectangle(frame, cv::Rect(cv::Point(0,480),cv::Point(1280,490)),cv::Scalar(0,255,0),2,4,0);
 	rectangle(frame, cv::Rect(cv::Point(0,360),cv::Point(1280,370)),cv::Scalar(0,255,0),2,4,0);
 
-	if(camera == 0)
+	if(camera == CAM)
 	{
 		imshow("left_line_symmetry", frame);
 	}
@@ -75,7 +76,7 @@ cv::Mat Parking::add_hsv_filter(const cv::Mat& frame, const int camera) {
 	std::vector<int> right_lowerYellow = { 10, 160, 100 };     // Lower limit for yellow
 	std::vector<int> right_upperYellow = { 40, 255, 255 };	 // Upper limit for yellow
 
-	if(camera == 0)
+	if(camera == CAM)
 	{
 		inRange(frame, left_lowerYellow, left_upperYellow, mask);
 	}
@@ -173,7 +174,7 @@ cv::Mat Parking::find_edge(const cv::Mat& frame, const int camera) {
 	imshow("edge", edge);
 
 
-	if(camera != 0)
+	if(camera != CAM)
 	{
 		center_x = center_x - 30;
 	}
@@ -217,7 +218,7 @@ cv::Mat Parking::find_edge(const cv::Mat& frame, const int camera) {
 
 	circle(gray_image, cv::Point(center_x,center_y), 10, cv::Scalar(255, 255, 255), 2);
 
-	if(camera == 0)
+	if(camera == CAM)
 	{
 		// imshow("left circle mean", gray_image);
 	}
@@ -335,7 +336,7 @@ double* Parking::find_center(const cv::Mat& frame, double array[], const int cam
         int bottom_y_right = hull[0].y;
         int bottom_num_right = 0;
 
-        for(int i = 0; i < hull.size(); i++)
+        for(int i = 0; i < int(hull.size()); i++)
         {
             // if(hull[i].y < top_y_left)
             // {
@@ -367,7 +368,7 @@ double* Parking::find_center(const cv::Mat& frame, double array[], const int cam
 		double long_sin = 0;
 		double fake_sin;
 
-		for(int j=0; j < hull.size(); j++)
+		for(int j=0; j < int(hull.size()); j++)
 		{
 			if((hull[j].y < bottom_y_left -50) && (hull[j].x < top_x_right - 50) && (hull[j].x < bottom_x_right - 50))
 			{
@@ -412,7 +413,7 @@ double* Parking::find_center(const cv::Mat& frame, double array[], const int cam
 		array[4] = mean_top_x;
 		array[5] = mean_top_y;
 
-		if(camera == 0)
+		if(camera == CAM)
 		{
 			imshow("Left", drawing);
 		}

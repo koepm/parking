@@ -6,6 +6,7 @@
 #include <std_msgs/msg/float64.hpp>
 #include <std_msgs/msg/int16.hpp>
 #include <std_msgs/msg/bool.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 #include <image_transport/image_transport.hpp>
 
 
@@ -36,8 +37,8 @@ class Parking : public rclcpp::Node
 		rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr lidar_flag_; // 라이다 스탑 플래그
 
 		//pub
-		rclcpp::Subscription<std_msgs::msg::Bool>::SharedPtr lidar_flag_;
 		rclcpp::TimerBase::SharedPtr timer_; // 호출 주기
+		rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr center_xz_pub_;
 
 		float baseline = 23;
 		float focal_pixels = 800; // size(1280, 720) 일때 focal_pixels
@@ -47,5 +48,6 @@ class Parking : public rclcpp::Node
 		float gps_for_camera_z = -50; //cm
 		int target_x = 135;
 		int target_z = 135;
-		
+		cv::VideoCapture cap_left_;
+		cv::VideoCapture cap_right_;
 };
